@@ -70,7 +70,7 @@ def create_analysis_view(board: chess.Board, move: chess.Move, player_color: che
 def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats):
     """
     Analyzes a single game for the specified player and updates the stats object.
-    This function's internal logic remains the same.
+    This function's internal logic remains the same, except for sacrifice calculation.
     """
     player_color = chess.WHITE if game.headers["White"] == player_name else chess.BLACK
     board = game.board()
@@ -80,7 +80,8 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
     is_win = (game.headers["Result"] == "1-0" and player_color == chess.WHITE) or \
              (game.headers["Result"] == "0-1" and player_color == chess.BLACK)
 
-    sacrifice_state = {'active': False, 'start_ply': 0, 'max_deficit': 0.0}
+    # State for tracking a sequence of moves with a material deficit.
+    sacrifice_state = {'active': False, 'quiet_moves_count': 0, 'max_deficit': 0.0}
     ply = 0 # Initialize ply
     for ply, move in enumerate(game.mainline_moves()):
         turn = board.turn
@@ -154,31 +155,36 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
                 if analysis_move.to_square == chess.F7 or chess.F7 in analysis_board.attacks(analysis_move.to_square):
                     stats.f7_f2_attacks += 1
 
-        if is_win and is_our_turn:
-            material_us = get_material_score(board, player_color)
-            material_them = get_material_score(board, not player_color)
-            balance = material_us - material_them
-            if not sacrifice_state['active']:
-                if balance < (WINNING_MATERIAL_ADVANTAGE * -1):
-                    board.push(move)
-                    new_balance = get_material_score(board, player_color) - get_material_score(board, not player_color)
-                    board.pop()
-                    if new_balance < balance and new_balance < 0:
-                        sacrifice_state.update({'active': True, 'start_ply': ply, 'max_deficit': abs(new_balance) / 100.0})
-            else:
-                if balance >= 0:
-                    duration = ply - sacrifice_state['start_ply']
-                    stats.total_sacrifice_score += sacrifice_state['max_deficit'] * duration
-                    sacrifice_state.update({'active': False, 'start_ply': 0, 'max_deficit': 0.0})
-                else:
-                    sacrifice_state['max_deficit'] = max(sacrifice_state['max_deficit'], abs(balance) / 100.0)
+            # --- NEW SACRIFICE LOGIC ---
+            # Temporarily push the move to check the material balance *after* our move.
+            board.push(move)
+            material_us_after = get_material_score(board, player_color)
+            material_them_after = get_material_score(board, not player_color)
+            balance_after = material_us_after - material_them_after
+            board.pop() # Revert board state for the rest of the loop's logic.
 
-        if is_our_turn:
-            # Check material balance for forcing moves and checks
-            material_us = get_material_score(board, player_color)
-            material_them = get_material_score(board, not player_color)
-            material_balance = material_us - material_them
-            has_winning_advantage = material_balance >= WINNING_MATERIAL_ADVANTAGE
+            if balance_after < 0:
+                # Deficit exists. Start or continue the sacrifice sequence.
+                if not sacrifice_state['active']:
+                    sacrifice_state['active'] = True
+                    sacrifice_state['quiet_moves_count'] = 0
+                    sacrifice_state['max_deficit'] = 0.0 # Will be updated below
+
+                # Update the max deficit seen during this sequence.
+                sacrifice_state['max_deficit'] = max(sacrifice_state['max_deficit'], abs(balance_after))
+
+                # A "quiet" move is a non-forcing move that continues the attack.
+                if not board.is_capture(move) and not board.gives_check(move):
+                    sacrifice_state['quiet_moves_count'] += 1
+            else:
+                # No deficit, so if a sequence was active, it has now ended.
+                if sacrifice_state['active']:
+                    # If the game was won, score the completed sacrifice sequence.
+                    if is_win:
+                        score = sacrifice_state['max_deficit'] * sacrifice_state['quiet_moves_count']
+                        stats.total_sacrifice_score += float(score)
+                    # Reset the state regardless of win/loss.
+                    sacrifice_state = {'active': False, 'quiet_moves_count': 0, 'max_deficit': 0.0}
 
             if not has_winning_advantage:
                 if board.is_capture(move) or board.gives_check(move):
@@ -203,17 +209,19 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
         if coordinated_attack_found:
             material_us = get_material_score(board, player_color)
             material_them = get_material_score(board, not player_color)
-            material_balance = material_us - material_them
-            if material_balance < WINNING_MATERIAL_ADVANTAGE:
+            if (material_us - material_them) < WINNING_MATERIAL_ADVANTAGE:
                 stats.coordinated_attacks += 1
 
         board.push(move)
         if is_our_turn:
             stats.total_moves += 1
 
-    if sacrifice_state['active']:
-        duration = (ply + 1) - sacrifice_state['start_ply']
-        stats.total_sacrifice_score += sacrifice_state['max_deficit'] * duration
+    # --- END OF GAME LOOP ---
+
+    # If the game ended while a sacrifice sequence was still active, score it.
+    if sacrifice_state['active'] and is_win:
+        score = sacrifice_state['max_deficit'] * sacrifice_state['quiet_moves_count']
+        stats.total_sacrifice_score += float(score)
 
     if not us_castled_side and ply >= 40:
         stats.forfeited_castling_games += 1
