@@ -188,7 +188,19 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
 
         # Coordinated attacks bonus (only when not having winning advantage)
         enemy_king_square = board.king(not player_color)
-        if enemy_king_square and len(board.attackers(player_color, enemy_king_square)) >= 3:
+        coordinated_attack_found = False
+        if enemy_king_square:
+            # Check 3x3 area around the king (all squares within distance 1)
+            unique_attackers = set()
+            for square in chess.SQUARES:
+                if chess.square_distance(square, enemy_king_square) <= 1:
+                    attackers = board.attackers(player_color, square)
+                    unique_attackers.update(attackers)
+
+            if len(unique_attackers) >= 3:
+                coordinated_attack_found = True
+
+        if coordinated_attack_found:
             material_us = get_material_score(board, player_color)
             material_them = get_material_score(board, not player_color)
             material_balance = material_us - material_them
