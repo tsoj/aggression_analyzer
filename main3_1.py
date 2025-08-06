@@ -227,9 +227,10 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
     else:
         stats.num_losses += 1
 
-def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float:
-    """Calculates the final aggression score from a stats object. Unchanged."""
-    if stats.num_games == 0 or stats.total_moves == 0: return 0.0
+def get_raw_feature_scores(stats: AggressionStats) -> Dict[str, float]:
+    """Calculates raw feature scores without weighting or normalization."""
+    if stats.num_games == 0 or stats.total_moves == 0:
+        return {}
 
     def get_proximity_score(distances: List[int]) -> float:
         weights = [0, 8, 6, 4, 2, 1, 0, 0]
@@ -237,31 +238,76 @@ def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float
         total_moves_in_zone = sum(distances)
         return score / (total_moves_in_zone * max(weights)) if total_moves_in_zone > 0 else 0.0
 
-    features = [
-        (20.0, "Sacrifice Score per Win", stats.total_sacrifice_score / stats.num_wins if stats.num_wins > 0 else 0),
-        (12.0, "Captures Near King", get_proximity_score(stats.captures_near_king_dist)),
-        (10.0, "Coordinated Attacks per Move", stats.coordinated_attacks / stats.total_moves),
-        (8.0, "Opposite-Side Castling Games", stats.opposite_side_castling_games / stats.num_games),
-        (7.0, "Pawn Storms per Move", stats.pawn_storms_vs_king / stats.total_moves),
-        (6.0, "Rook/Queen Threats per Move", stats.rook_queen_threats / stats.total_moves),
-        (6.0, "Moves Near King", get_proximity_score(stats.moves_near_king_dist)),
-        (6.0, "Advanced Pieces per Move", stats.advanced_pieces / stats.total_moves),
-        (5.0, "Forcing Moves per Move", stats.forcing_moves / stats.total_moves),
-        (5.0, "Checks per Move", stats.total_checks / stats.total_moves),
-        (5.0, "Forfeited Castling Games", stats.forfeited_castling_games / stats.num_games),
-        (4.0, "Bishop/Queen Threats per Move", stats.bishop_queen_threats / stats.total_moves),
-        (4.0, "Knight Outposts per Move", stats.knight_outposts / stats.total_moves),
-        (3.0, "Rook Lifts per Move", stats.rook_lifts / stats.total_moves),
-        (3.0, "Central Pawn Breaks per Move", stats.central_pawn_breaks / stats.total_moves),
-        (3.0, "Short Game Bonus per Win", stats.short_game_bonus / stats.num_wins if stats.num_wins > 0 else 0),
-        (2.0, "F7/F2 Attacks per Move", stats.f7_f2_attacks / stats.total_moves),
-    ]
-    normalization_caps = { "Sacrifice Score per Win": 50.0, "Captures Near King": 1.0, "Coordinated Attacks per Move": 0.05, "Opposite-Side Castling Games": 0.5, "Pawn Storms per Move": 0.1, "Rook/Queen Threats per Move": 0.1, "Moves Near King": 1.0, "Forcing Moves per Move": 0.4, "Forfeited Castling Games": 0.3, "Bishop/Queen Threats per Move": 0.1, "Short Game Bonus per Win": 1.0}
+    raw_scores = {
+        "Sacrifice Score per Win": stats.total_sacrifice_score / stats.num_wins if stats.num_wins > 0 else 0,
+        "Captures Near King": get_proximity_score(stats.captures_near_king_dist),
+        "Coordinated Attacks per Move": stats.coordinated_attacks / stats.total_moves,
+        "Opposite-Side Castling Games": stats.opposite_side_castling_games / stats.num_games,
+        "Pawn Storms per Move": stats.pawn_storms_vs_king / stats.total_moves,
+        "Rook/Queen Threats per Move": stats.rook_queen_threats / stats.total_moves,
+        "Moves Near King": get_proximity_score(stats.moves_near_king_dist),
+        "Advanced Pieces per Move": stats.advanced_pieces / stats.total_moves,
+        "Forcing Moves per Move": stats.forcing_moves / stats.total_moves,
+        "Checks per Move": stats.total_checks / stats.total_moves,
+        "Forfeited Castling Games": stats.forfeited_castling_games / stats.num_games,
+        "Bishop/Queen Threats per Move": stats.bishop_queen_threats / stats.total_moves,
+        "Knight Outposts per Move": stats.knight_outposts / stats.total_moves,
+        "Rook Lifts per Move": stats.rook_lifts / stats.total_moves,
+        "Central Pawn Breaks per Move": stats.central_pawn_breaks / stats.total_moves,
+        "Short Game Bonus per Win": stats.short_game_bonus / stats.num_wins if stats.num_wins > 0 else 0,
+        "F7/F2 Attacks per Move": stats.f7_f2_attacks / stats.total_moves,
+    }
+    return raw_scores
 
-    total_weight, total_weighted_score = sum(w for w, _, _ in features), 0
-    for weight, name, value in features:
-        cap = normalization_caps.get(name, 0.2)
-        normalized_value = min(value / cap, 1.0) if cap > 0 else 0
+def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float:
+    """Calculates the final aggression score from a stats object using weights and normalization."""
+    raw_scores = get_raw_feature_scores(stats)
+    if not raw_scores:
+        return 0.0
+
+    # Feature weights
+    feature_weights = {
+        "Sacrifice Score per Win": 20.0,
+        "Captures Near King": 12.0,
+        "Coordinated Attacks per Move": 10.0,
+        "Opposite-Side Castling Games": 8.0,
+        "Pawn Storms per Move": 7.0,
+        "Rook/Queen Threats per Move": 6.0,
+        "Moves Near King": 6.0,
+        "Advanced Pieces per Move": 6.0,
+        "Forcing Moves per Move": 5.0,
+        "Checks per Move": 5.0,
+        "Forfeited Castling Games": 5.0,
+        "Bishop/Queen Threats per Move": 4.0,
+        "Knight Outposts per Move": 4.0,
+        "Rook Lifts per Move": 3.0,
+        "Central Pawn Breaks per Move": 3.0,
+        "Short Game Bonus per Win": 3.0,
+        "F7/F2 Attacks per Move": 2.0,
+    }
+
+    # Normalization caps (for current normalization method)
+    normalization_caps = {
+        "Sacrifice Score per Win": 50.0,
+        "Captures Near King": 1.0,
+        "Coordinated Attacks per Move": 0.05,
+        "Opposite-Side Castling Games": 0.5,
+        "Pawn Storms per Move": 0.1,
+        "Rook/Queen Threats per Move": 0.1,
+        "Moves Near King": 1.0,
+        "Forcing Moves per Move": 0.4,
+        "Forfeited Castling Games": 0.3,
+        "Bishop/Queen Threats per Move": 0.1,
+        "Short Game Bonus per Win": 1.0
+    }
+
+    total_weight = sum(feature_weights.values())
+    total_weighted_score = 0
+
+    for feature_name, raw_value in raw_scores.items():
+        weight = feature_weights[feature_name]
+        cap = normalization_caps.get(feature_name, 0.2)
+        normalized_value = min(raw_value / cap, 1.0) if cap > 0 else 0
         total_weighted_score += weight * normalized_value
 
     final_score = (total_weighted_score / total_weight) * 100
@@ -289,11 +335,13 @@ def main():
     parser.add_argument("--player", type=str, help="Name of a specific player to analyze. If omitted, all players will be analyzed.")
     parser.add_argument("--games", type=int, help="Maximum number of games to process.")
     parser.add_argument("--min_games", type=int, default=10, help="Minimum games for a player to be included in 'all players' analysis.")
+    parser.add_argument("--min_rating", type=int, default=2000, help="Minimum rating for the lower-rated player in each game (default: 2000).")
     parser.add_argument("--top_n", type=int, default=10, help="Number of top/bottom games to display.")
     parser.add_argument("--verbose", action="store_true", help="Show detailed breakdown of the aggression score.")
     args = parser.parse_args()
 
     pgn_path = args.pgn
+    tmpdir = None
     if pgn_path.startswith("http"):
         tmpdir = tempfile.TemporaryDirectory()
         local_pgn_path = os.path.join(tmpdir.name, "games.pgn")
@@ -307,8 +355,9 @@ def main():
     top_aggressive_games = []
     least_aggressive_games = []
     games_processed = 0
+    games_filtered_by_rating = 0
 
-    print("Analyzing games...")
+    print(f"Analyzing games (filtering games where lower-rated player is below {args.min_rating})...")
     with open(pgn_path) as pgn_file:
         while True:
             if args.games and games_processed >= args.games:
@@ -317,16 +366,26 @@ def main():
             try:
                 game = chess.pgn.read_game(pgn_file)
                 if game is None: break
-            except Exception as e:
+            except Exception:
                 # This can happen with malformed PGNs
                 continue
 
-            games_processed += 1
-            print(f"\rProcessed {games_processed} games...", end="")
 
             white_player = game.headers.get("White", "?")
             black_player = game.headers.get("Black", "?")
             if "?" in (white_player, black_player): continue
+
+            # Filter out games where the lower rated player is below the minimum rating
+            try:
+                white_elo = int(game.headers.get("WhiteElo", "0"))
+                black_elo = int(game.headers.get("BlackElo", "0"))
+                min_elo = min(white_elo, black_elo)
+                if min_elo > 0 and min_elo < args.min_rating:
+                    games_filtered_by_rating += 1
+                    continue
+            except (ValueError, TypeError):
+                # Skip games with invalid or missing rating information
+                continue
 
             # --- Mode Dispatch ---
             if args.player: # SINGLE-PLAYER MODE
@@ -359,8 +418,12 @@ def main():
                     if len(least_aggressive_games) > args.top_n:
                         least_aggressive_games.pop()
 
+            games_processed += 1
+            print(f"\rProcessed {games_processed} games...", end="")
 
-    print("\n\n--- Analysis Complete ---")
+    print(f"\n\n--- Analysis Complete ---")
+    if games_filtered_by_rating > 0:
+        print(f"Filtered out {games_filtered_by_rating} games due to rating requirements (min rating: {args.min_rating})")
 
     # --- Output Results ---
     if args.player: # SINGLE-PLAYER MODE OUTPUT
@@ -422,7 +485,7 @@ def main():
 
 
     # Cleanup temporary directory if it was created
-    if 'tmpdir' in locals():
+    if tmpdir is not None:
         tmpdir.cleanup()
 
 if __name__ == '__main__':
