@@ -28,6 +28,7 @@ class AggressionStats:
     num_draws: int = 0
     num_losses: int = 0
     total_moves: int = 0
+    num_win_moves: int = 0
     opposite_side_castling_games: int = 0
     forfeited_castling_games: int = 0
     pawn_storms_vs_king: int = 0
@@ -77,8 +78,12 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
     us_castled_side = None
     them_castled_side = None
 
-    is_win = (game.headers["Result"] == "1-0" and player_color == chess.WHITE) or \
-             (game.headers["Result"] == "0-1" and player_color == chess.BLACK)
+
+    termination = game.headers.get("Termination", "").lower()
+    is_draw = "time forfeit" in termination or game.headers["Result"] == "1/2-1/2"
+
+    is_win = ((game.headers["Result"] == "1-0" and player_color == chess.WHITE) or
+        (game.headers["Result"] == "0-1" and player_color == chess.BLACK)) and not is_draw
 
     # State for tracking a sequence of moves with a material deficit.
     sacrifice_state = {'active': False, 'quiet_moves_count': 0, 'max_deficit': 0.0}
@@ -215,6 +220,8 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
         board.push(move)
         if is_our_turn:
             stats.total_moves += 1
+            if is_win:
+                stats.num_win_moves += 1
 
     # --- END OF GAME LOOP ---
 
@@ -227,8 +234,7 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
         stats.forfeited_castling_games += 1
 
     stats.num_games += 1
-    termination = game.headers.get("Termination", "").lower()
-    if "time forfeit" in termination or game.headers["Result"] == "1/2-1/2":
+    if is_draw:
         stats.num_draws += 1
     elif is_win:
         stats.num_wins += 1
@@ -259,7 +265,7 @@ def get_raw_feature_scores(stats: AggressionStats) -> Dict[str, float]:
         return score / (total_moves_in_zone * max(weights)) if total_moves_in_zone > 0 else 0.0
 
     raw_scores = {
-        "Sacrifice Score per Win": stats.total_sacrifice_score / stats.num_wins if stats.num_wins > 0 else 0,
+        "Sacrifice Score per Win": stats.total_sacrifice_score / stats.num_win_moves if stats.num_win_moves > 0 else 0,
         "Captures Near King": get_proximity_score(stats.captures_near_king_dist),
         "Coordinated Attacks per Move": stats.coordinated_attacks / stats.total_moves,
         "Opposite-Side Castling Games": stats.opposite_side_castling_games / stats.num_games,
@@ -287,7 +293,7 @@ def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float
 
     # Feature weights
     feature_weights = {
-        "Sacrifice Score per Win": 20.0,
+        "Sacrifice Score per Win": 2000.0,
         "Captures Near King": 12.0,
         "Coordinated Attacks per Move": 10.0,
         "Opposite-Side Castling Games": 8.0,
@@ -308,7 +314,7 @@ def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float
 
     # Normalization caps (for current normalization method)
     normalization_caps = {
-        "Sacrifice Score per Win": 50.0,
+        "Sacrifice Score per Win": 5.0,
         "Captures Near King": 1.0,
         "Coordinated Attacks per Move": 0.05,
         "Opposite-Side Castling Games": 0.5,
@@ -420,23 +426,23 @@ def main():
                 stats_black = all_player_stats.setdefault(black_player, AggressionStats())
                 analyse_game(game, black_player, stats_black)
 
-                # Track top/least aggressive games across all players
-                temp_stats = AggressionStats()
-                analyse_game(game, white_player, temp_stats)
-                analyse_game(game, black_player, temp_stats)
-                score = get_aggression_score(temp_stats)
+                for player in [white_player, black_player]:
+                    # Track top/least aggressive games across all players
+                    temp_stats = AggressionStats()
+                    analyse_game(game, player, temp_stats)
+                    score = get_aggression_score(temp_stats)
 
-                if len(top_aggressive_games) < args.top_n or score > top_aggressive_games[-1][1]:
-                    top_aggressive_games.append((game, score))
-                    top_aggressive_games.sort(key=lambda item: item[1], reverse=True)
-                    if len(top_aggressive_games) > args.top_n:
-                        top_aggressive_games.pop()
+                    if len(top_aggressive_games) < args.top_n or score > top_aggressive_games[-1][1]:
+                        top_aggressive_games.append((game, score, player, temp_stats))
+                        top_aggressive_games.sort(key=lambda item: item[1], reverse=True)
+                        if len(top_aggressive_games) > args.top_n:
+                            top_aggressive_games.pop()
 
-                if len(least_aggressive_games) < args.top_n or score < least_aggressive_games[-1][1]:
-                    least_aggressive_games.append((game, score))
-                    least_aggressive_games.sort(key=lambda item: item[1])
-                    if len(least_aggressive_games) > args.top_n:
-                        least_aggressive_games.pop()
+                    if len(least_aggressive_games) < args.top_n or score < least_aggressive_games[-1][1]:
+                        least_aggressive_games.append((game, score, player, temp_stats))
+                        least_aggressive_games.sort(key=lambda item: item[1])
+                        if len(least_aggressive_games) > args.top_n:
+                            least_aggressive_games.pop()
 
             games_processed += 1
             print(f"\rProcessed {games_processed} games...", end="")
@@ -492,16 +498,20 @@ def main():
             print(f"{i+1:<5} {player:<30} {score:<15.2f} {stats.num_games:<10} {record}")
 
         print(f"\n--- Top {args.top_n} Most Aggressive Games (All Players) ---")
-        for game, score in top_aggressive_games:
-            print(f"\nScore: {score:.2f} - {game.headers.get('Site', '?')}")
+        for game, score, player, stats in top_aggressive_games:
+            print("-"*50)
+            print(f"\nScore: {score:.2f} - {game.headers.get('Site', '?')} - {player}")
             print(f"White: {game.headers.get('White', '?')}, Black: {game.headers.get('Black', '?')}")
             print(game)
+            print(stats)
 
         print(f"\n--- Top {args.top_n} Least Aggressive Games (All Players) ---")
-        for game, score in least_aggressive_games:
-            print(f"\nScore: {score:.2f} - {game.headers.get('Site', '?')}")
+        for game, score, player, stats in least_aggressive_games:
+            print("-"*50)
+            print(f"\nScore: {score:.2f} - {game.headers.get('Site', '?')} - {player}")
             print(f"White: {game.headers.get('White', '?')}, Black: {game.headers.get('Black', '?')}")
             print(game)
+            print(stats)
 
 
     # Cleanup temporary directory if it was created
