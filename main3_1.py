@@ -72,22 +72,55 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
     """
     Analyzes a single game for the specified player and updates the stats object.
     This function's internal logic remains the same, except for sacrifice calculation.
+
+    Sacrifice scoring (updated):
+      - Track the material deficit *after our move*.
+      - While in a deficit sequence, collect deficit magnitudes (positive) on our
+        QUIET moves only (non-capture, non-check).
+      - When the sequence ends (or at game end), if the game was won, apply a
+        max filter of radius SACRIFICE_MAXFILTER_RADIUS over the collected quiet-move
+        deficits and sum the filtered values. Add that sum to stats.total_sacrifice_score.
     """
+    # How far the max filter spreads to neighbors on either side within the same quiet-move list.
+    # Increase to reward longer chains more strongly.
+    SACRIFICE_MAXFILTER_RADIUS = 2
+
+    def _max_filter_radius(seq, radius):
+        """Return a list where each position is replaced by the max value in a window
+        centered at that position with +/- radius bounds (within seq)."""
+        n = len(seq)
+        if n == 0:
+            return []
+        out = []
+        for i in range(n):
+            lo = max(0, i - radius)
+            hi = min(n, i + radius + 1)
+            out.append(max(seq[lo:hi]))
+        return out
+
+    def _score_sacrifice_quiet_deficits(quiet_deficits):
+        """Apply max filter and return the sum of filtered values (float)."""
+        if not quiet_deficits:
+            return 0.0
+        filtered = _max_filter_radius(quiet_deficits, SACRIFICE_MAXFILTER_RADIUS)
+        return float(sum(filtered))
+
     player_color = chess.WHITE if game.headers["White"] == player_name else chess.BLACK
     board = game.board()
     us_castled_side = None
     them_castled_side = None
 
-
     termination = game.headers.get("Termination", "").lower()
     is_draw = "time forfeit" in termination or game.headers["Result"] == "1/2-1/2"
 
     is_win = ((game.headers["Result"] == "1-0" and player_color == chess.WHITE) or
-        (game.headers["Result"] == "0-1" and player_color == chess.BLACK)) and not is_draw
+              (game.headers["Result"] == "0-1" and player_color == chess.BLACK)) and not is_draw
 
     # State for tracking a sequence of moves with a material deficit.
-    sacrifice_state = {'active': False, 'quiet_moves_count': 0, 'max_deficit': 0.0}
-    ply = 0 # Initialize ply
+    # We now store only the deficits on QUIET moves (non-capture, non-check).
+    sacrifice_state = {'active': False, 'quiet_deficits': []}
+
+    ply = 0  # Initialize ply
     for ply, move in enumerate(game.mainline_moves()):
         turn = board.turn
         is_our_turn = (turn == player_color)
@@ -110,8 +143,8 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
             analysis_board, analysis_move = create_analysis_view(board, move, player_color)
             moving_piece_type = analysis_board.piece_type_at(analysis_move.from_square)
             if not moving_piece_type:
-                 board.push(move)
-                 continue
+                board.push(move)
+                continue
 
             # Check if we have a winning material advantage - only award aggressive bonuses if we don't
             material_us = get_material_score(board, player_color)
@@ -166,30 +199,26 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
             material_us_after = get_material_score(board, player_color)
             material_them_after = get_material_score(board, not player_color)
             balance_after = material_us_after - material_them_after
-            board.pop() # Revert board state for the rest of the loop's logic.
+            board.pop()  # Revert board state for the rest of the loop's logic.
 
             if balance_after < 0:
-                # Deficit exists. Start or continue the sacrifice sequence.
+                # We are in a deficit. Start or continue the deficit sequence.
                 if not sacrifice_state['active']:
                     sacrifice_state['active'] = True
-                    sacrifice_state['quiet_moves_count'] = 0
-                    sacrifice_state['max_deficit'] = 0.0 # Will be updated below
+                    sacrifice_state['quiet_deficits'] = []
 
-                # Update the max deficit seen during this sequence.
-                sacrifice_state['max_deficit'] = max(sacrifice_state['max_deficit'], abs(balance_after))
-
-                # A "quiet" move is a non-forcing move that continues the attack.
+                # If this move is QUIET (non-capture, non-check), record the deficit magnitude.
                 if not board.is_capture(move) and not board.gives_check(move):
-                    sacrifice_state['quiet_moves_count'] += 1
+                    sacrifice_state['quiet_deficits'].append(abs(balance_after))
             else:
-                # No deficit, so if a sequence was active, it has now ended.
+                # No deficit; if a sequence was active, it ends here.
                 if sacrifice_state['active']:
                     # If the game was won, score the completed sacrifice sequence.
                     if is_win:
-                        score = sacrifice_state['max_deficit'] * sacrifice_state['quiet_moves_count']
-                        stats.total_sacrifice_score += float(score)
-                    # Reset the state regardless of win/loss.
-                    sacrifice_state = {'active': False, 'quiet_moves_count': 0, 'max_deficit': 0.0}
+                        seq_score = _score_sacrifice_quiet_deficits(sacrifice_state['quiet_deficits'])
+                        stats.total_sacrifice_score += seq_score
+                    # Reset state.
+                    sacrifice_state = {'active': False, 'quiet_deficits': []}
 
             if not has_winning_advantage:
                 if board.is_capture(move) or board.gives_check(move):
@@ -225,10 +254,10 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
 
     # --- END OF GAME LOOP ---
 
-    # If the game ended while a sacrifice sequence was still active, score it.
+    # If the game ended while a deficit sequence was still active, score it.
     if sacrifice_state['active'] and is_win:
-        score = sacrifice_state['max_deficit'] * sacrifice_state['quiet_moves_count']
-        stats.total_sacrifice_score += float(score)
+        seq_score = _score_sacrifice_quiet_deficits(sacrifice_state['quiet_deficits'])
+        stats.total_sacrifice_score += seq_score
 
     if not us_castled_side and ply >= 40:
         stats.forfeited_castling_games += 1
