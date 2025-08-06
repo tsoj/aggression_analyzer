@@ -180,10 +180,11 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
         stats.forfeited_castling_games += 1
 
     stats.num_games += 1
-    if is_win:
-        stats.num_wins += 1
-    elif game.headers["Result"] == "1/2-1/2":
+    termination = game.headers.get("Termination", "").lower()
+    if "time forfeit" in termination or game.headers["Result"] == "1/2-1/2":
         stats.num_draws += 1
+    elif is_win:
+        stats.num_wins += 1
     else:
         stats.num_losses += 1
 
@@ -248,7 +249,7 @@ def main():
     parser.add_argument("--player", type=str, help="Name of a specific player to analyze. If omitted, all players will be analyzed.")
     parser.add_argument("--games", type=int, help="Maximum number of games to process.")
     parser.add_argument("--min_games", type=int, default=10, help="Minimum games for a player to be included in 'all players' analysis.")
-    parser.add_argument("--top_n", type=int, default=10, help="Number of top/bottom games to display in single-player mode.")
+    parser.add_argument("--top_n", type=int, default=10, help="Number of top/bottom games to display.")
     parser.add_argument("--verbose", action="store_true", help="Show detailed breakdown of the aggression score.")
     args = parser.parse_args()
 
@@ -262,7 +263,9 @@ def main():
 
     # --- Analysis ---
     all_player_stats: Dict[str, AggressionStats] = {}
-    game_scores_for_player = [] # Used only in single-player mode
+    game_scores_for_player = []
+    top_aggressive_games = []
+    least_aggressive_games = []
     games_processed = 0
 
     print("Analyzing games...")
@@ -297,6 +300,25 @@ def main():
                 analyse_game(game, white_player, stats_white)
                 stats_black = all_player_stats.setdefault(black_player, AggressionStats())
                 analyse_game(game, black_player, stats_black)
+
+                # Track top/least aggressive games across all players
+                temp_stats = AggressionStats()
+                analyse_game(game, white_player, temp_stats)
+                analyse_game(game, black_player, temp_stats)
+                score = get_aggression_score(temp_stats)
+
+                if len(top_aggressive_games) < args.top_n or score > top_aggressive_games[-1][1]:
+                    top_aggressive_games.append((game, score))
+                    top_aggressive_games.sort(key=lambda item: item[1], reverse=True)
+                    if len(top_aggressive_games) > args.top_n:
+                        top_aggressive_games.pop()
+
+                if len(least_aggressive_games) < args.top_n or score < least_aggressive_games[-1][1]:
+                    least_aggressive_games.append((game, score))
+                    least_aggressive_games.sort(key=lambda item: item[1])
+                    if len(least_aggressive_games) > args.top_n:
+                        least_aggressive_games.pop()
+
 
     print("\n\n--- Analysis Complete ---")
 
@@ -345,6 +367,19 @@ def main():
         for i, (player, score, stats) in enumerate(sorted_players):
             record = f"{stats.num_wins} / {stats.num_draws} / {stats.num_losses}"
             print(f"{i+1:<5} {player:<30} {score:<15.2f} {stats.num_games:<10} {record}")
+
+        print(f"\n--- Top {args.top_n} Most Aggressive Games (All Players) ---")
+        for game, score in top_aggressive_games:
+            print(f"\nScore: {score:.2f} - {game.headers.get('Site', '?')}")
+            print(f"White: {game.headers.get('White', '?')}, Black: {game.headers.get('Black', '?')}")
+            print(game)
+
+        print(f"\n--- Top {args.top_n} Least Aggressive Games (All Players) ---")
+        for game, score in least_aggressive_games:
+            print(f"\nScore: {score:.2f} - {game.headers.get('Site', '?')}")
+            print(f"White: {game.headers.get('White', '?')}, Black: {game.headers.get('Black', '?')}")
+            print(game)
+
 
     # Cleanup temporary directory if it was created
     if 'tmpdir' in locals():
