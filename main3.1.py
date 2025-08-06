@@ -44,6 +44,7 @@ class AggressionStats:
     forcing_moves: int = 0
     f7_f2_attacks: int = 0
     coordinated_attacks: int = 0
+    short_game_bonus: float = 0.0
 
 # --- Core Analysis Functions (Unchanged) ---
 def get_material_score(board: chess.Board, side: chess.Color) -> int:
@@ -185,6 +186,12 @@ def analyse_game(game: chess.pgn.Game, player_name: str, stats: AggressionStats)
         stats.num_draws += 1
     elif is_win:
         stats.num_wins += 1
+        # Add bonus for short games that are won (inverse linear relationship with game length)
+        # Bonus is highest for games under 30 moves, decreasing to 0 at 60+ moves
+        game_length = (ply + 1) // 2  # Convert half-moves to full moves
+        if game_length <= 60:
+            bonus = max(0, (60 - game_length) / 30.0)  # Linear decrease from 1.0 to 0
+            stats.short_game_bonus += bonus
     else:
         stats.num_losses += 1
 
@@ -214,9 +221,10 @@ def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float
         (4.0, "Knight Outposts per Move", stats.knight_outposts / stats.total_moves),
         (3.0, "Rook Lifts per Move", stats.rook_lifts / stats.total_moves),
         (3.0, "Central Pawn Breaks per Move", stats.central_pawn_breaks / stats.total_moves),
+        (3.0, "Short Game Bonus per Win", stats.short_game_bonus / stats.num_wins if stats.num_wins > 0 else 0),
         (2.0, "F7/F2 Attacks per Move", stats.f7_f2_attacks / stats.total_moves),
     ]
-    normalization_caps = { "Sacrifice Score per Win": 50.0, "Captures Near King": 1.0, "Coordinated Attacks per Move": 0.05, "Opposite-Side Castling Games": 0.5, "Pawn Storms per Move": 0.1, "Rook/Queen Threats per Move": 0.1, "Moves Near King": 1.0, "Forcing Moves per Move": 0.4, "Forfeited Castling Games": 0.3, "Bishop/Queen Threats per Move": 0.1}
+    normalization_caps = { "Sacrifice Score per Win": 50.0, "Captures Near King": 1.0, "Coordinated Attacks per Move": 0.05, "Opposite-Side Castling Games": 0.5, "Pawn Storms per Move": 0.1, "Rook/Queen Threats per Move": 0.1, "Moves Near King": 1.0, "Forcing Moves per Move": 0.4, "Forfeited Castling Games": 0.3, "Bishop/Queen Threats per Move": 0.1, "Short Game Bonus per Win": 1.0}
 
     total_weight, total_weighted_score = sum(w for w, _, _ in features), 0
     for weight, name, value in features:
