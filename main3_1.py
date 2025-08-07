@@ -425,10 +425,6 @@ def main():
                 # This can happen with malformed PGNs
                 continue
 
-            # tc = game.headers.get("TimeControl")
-            # print(tc)
-            # if tc and tc != "-" and any(v < lim for v, lim in zip(map(int, (tc.split('+') + ['0'])[:2]), (450, 5))):
-            #     continue
             event = game.headers.get("Event", "").lower()
             if "rapid" not in event and "classical" not in event:
                 continue
