@@ -140,6 +140,9 @@ def objective(trial: optuna.trial.Trial, training_data: List[Tuple[Dict, float]]
     total_error = 0.0
     for raw_scores, target_label in training_data:
         predicted_score = calculate_score_with_weights(raw_scores, weights)
+        if target_label == 1.0:
+            # We don't care if attacking games are labelled as too aggressive
+            predicted_score = min(1.0, predicted_score)
         total_error += abs(predicted_score - target_label)
 
     return total_error / len(training_data)
