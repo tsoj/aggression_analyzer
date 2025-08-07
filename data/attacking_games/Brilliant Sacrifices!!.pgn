@@ -1,0 +1,156 @@
+[Event "Odds Game"]
+[Site "?"]
+[Date "1884.??.??"]
+[EventDate "?"]
+[Round "?"]
+[Result "1-0"]
+[White "William Robert Ballard"]
+[Black "Joseph George Fagan"]
+[ECO "000"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[Source "Chess-Monthly, vol.vi, January 1885, p.149"]
+[PlyCount "59"]
+[SetUp "1"]
+[FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR w KQkq - 0 1"]
+
+1. e4 {From Irving Chernev's "Chess Companion"; the date is
+uncertain. } e5 2. f4 exf4 3. Nf3 Be7 4. Bc4 Bh4+ 5. g3 fxg3
+6. O-O Nh6 7. d4 O-O 8. hxg3 Bxg3 9. Kg2 Bd6 10. Rh1 Qf6
+11. e5 Qg6+ 12. Kf1 Nf5 13. Rg1 Ng3+ 14. Kf2 Ne4+ 15. Ke1 Bb4+
+16. c3 Nxc3 17. bxc3 Bxc3+ 18. Kf2 Qc6 19. Bd3 Bxa1 20. d5
+Qb6+ 21. Be3 Qb2+ 22. Kf1 f5 23. Bd4 Qxa2 24. Bxa1 Qxd5 25. e6
+g6 26. e7 Re8 27. Qe2 Qc5 28. Qb2 Rxe7 29. Qh8+ {The diagram
+shows that White has given away all eight of his Pawns -- a
+world record which cannot be broken! --Chernev} 29...Kf7
+30. Ng5# 1-0
+
+[Event "Casual Game"]
+[Site "Berlin GER (Prussian Empire)"]
+[Date "1852.??.??"]
+[EventDate "?"]
+[Round "?"]
+[Result "1-0"]
+[White "Adolf Anderssen"]
+[Black "Jean Dufresne"]
+[ECO "C52"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[PlyCount "40"]
+[Source "Schachzeitung, v7 n9, September 1852, pp338-339"]
+[SourceNote "ending given in Schachzeitung, v7 n10, October 1852, p383"]
+
+1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.b4 Bxb4 5.c3 Ba5 6.d4 exd4 7.O-O
+d3 8.Qb3 Qf6 9.e5 Qg6 10.Re1 Nge7 11.Ba3 b5 12.Qxb5 Rb8 13.Qa4
+Bb6 14.Nbd2 Bb7 15.Ne4 Qf5 16.Bxd3 Qh5 17.Nf6+ gxf6 18.exf6
+Rg8 19.Rad1 Qxf3 20.Rxe7+ Nxe7 {White gives mate in 4 moves. 
+21.Qxd7+ Kxd7 22.Bf5+ Ke8 23.Bd7+ Kf8 24.Bxe7#} 1-0
+
+[Event "Casual game"]
+[Site "London ENG"]
+[Date "1851.06.21"]
+[EventDate "?"]
+[Round "?"]
+[Result "1-0"]
+[White "Adolf Anderssen"]
+[Black "Lionel Adalbert Bagration Felix Kieseritzky"]
+[ECO "C33"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[Source "La Régence, v3 n7, July 1851, pp221-222"]
+[SourceNote "ends 19.Ke2"]
+[Source2 "The Chess Player, vol.i no.1, 1851.07.19, p.2"]
+[PlyCount "45"]
+
+1.e4 e5 2.f4 exf4 3.Bc4 Qh4+ 4.Kf1 b5 5.Bxb5 Nf6 6.Nf3 Qh6
+7.d3 Nh5 8.Nh4 Qg5 9.Nf5 c6 10.g4 Nf6 11.Rg1 cxb5 12.h4 Qg6
+13.h5 Qg5 14.Qf3 Ng8 15.Bxf4 Qf6 16.Nc3 Bc5 17.Nd5 Qxb2 18.Bd6
+Bxg1 {It is from this move that Black's defeat stems. Wilhelm
+Steinitz suggested in 1879 that a better move would be
+18... Qxa1+; likely moves to follow are 19. Ke2 Qb2 20. Kd2
+Bxg1.} 19. e5 Qxa1+ 20. Ke2 Na6 21.Nxg7+ Kd8 22.Qf6+ Nxf6
+23.Be7# 1-0
+
+[Event "Third Rosenwald Trophy"]
+[Site "New York, NY USA"]
+[Date "1956.10.17"]
+[EventDate "1956.10.07"]
+[Round "8"]
+[Result "0-1"]
+[White "Donald Byrne"]
+[Black "Robert James Fischer"]
+[ECO "D92"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[PlyCount "82"]
+
+1. Nf3 Nf6 2. c4 g6 3. Nc3 Bg7 4. d4 O-O 5. Bf4 d5 6. Qb3 dxc4
+7. Qxc4 c6 8. e4 Nbd7 9. Rd1 Nb6 10. Qc5 Bg4 11. Bg5 {11. Be2
+followed by 12. O-O would have been more prudent. The bishop
+move played allows a sudden crescendo of tactical points to be
+uncovered by Fischer. -- Wade} Na4 {!} 12. Qa3 {On 12. Nxa4
+Nxe4 and White faces considerable difficulties.} Nxc3 {At
+first glance, one might think that this move only helps White
+create a stronger pawn center; however, Fischer's plan is
+quite the opposite. By eliminating the Knight on c3, it
+becomes possible to sacrifice the exchange via Nxe4 and smash
+White's center, while the King remains trapped in the center.}
+13. bxc3 Nxe4 {The natural continuation of Black's plan.}
+14. Bxe7 Qb6 15. Bc4 Nxc3 16. Bc5 Rfe8+ 17. Kf1 Be6 {!! If
+this is the game of the century, then 17...Be6!! must be the
+counter of the century. Fischer offers his queen in exchange
+for a fierce attack with his minor pieces. Declining this
+offer is not so easy: 18. Bxe6 leads to a 'Philidor Mate'
+(smothered mate) with ...Qb5+ 19. Kg1 Ne2+ 20. Kf1 Ng3+
+21. Kg1 Qf1+ 22. Rxf1 Ne2#. Other ways to decline the queen
+also run into trouble: e.g., 18. Qxc3 Qxc5} 18. Bxb6 Bxc4+
+19. Kg1 Ne2+ 20. Kf1 Nxd4+ {This tactical scenario, where a
+king is repeatedly revealed to checks, is sometimes called a
+"windmill."} 21. Kg1 Ne2+ 22. Kf1 Nc3+ 23. Kg1 axb6 24. Qb4
+Ra4 25. Qxb6 Nxd1 26. h3 Rxa2 27. Kh2 Nxf2 28. Re1 Rxe1
+29. Qd8+ Bf8 30. Nxe1 Bd5 31. Nf3 Ne4 32. Qb8 b5 {Every piece
+and pawn of the black camp is defended. The white queen has
+nothing to do.} 33. h4 h5 34. Ne5 Kg7 35. Kg1 Bc5+ 36. Kf1
+Ng3+ {Now Byrne is hopelessly entangled in Fischer's mating
+net.} 37. Ke1 Bb4+ 38. Kd1 Bb3+ 39. Kc1 Ne2+ 40. Kb1 Nc3+
+41. Kc1 Rc2# 0-1
+
+[Event "Analysis"]
+[Site "Breslau POL (Prussian Empire)"]
+[Date "1859.??.??"]
+[EventDate "?"]
+[Round "?"]
+[Result "0-1"]
+[White "Adolf Anderssen"]
+[Black "Max Lange"]
+[ECO "C61"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[PlyCount "38"]
+
+1.e4 e5 2.Nf3 Nc6 3.Bb5 Nd4 4.Nxd4 exd4 5.Bc4 Nf6 6.e5 d5
+7.Bb3 Bg4 8.f3 Ne4 9.O-O d3 10.fxg4 Bc5+ 11.Kh1 Ng3+ 12.hxg3
+Qg5 13.Rf5 h5 14.gxh5 Qxf5 15.g4 Rxh5+ 16.gxh5 Qe4 17.Qf3 Qh4+
+18.Qh3 Qe1+ 19.Kh2 Bg1+ 0-1
+
+[Event "Gothenburg Interzonal"]
+[Site "Gothenburg SWE"]
+[Date "1955.09.06"]
+[EventDate "1955.08.15"]
+[Round "13"]
+[Result "1-0"]
+[White "Oscar Panno"]
+[Black "Boris Spassky"]
+[ECO "A04"]
+[WhiteElo "?"]
+[BlackElo "?"]
+[PlyCount "65"]
+
+1. Nf3 Nf6 2. g3 c5 3. Bg2 Nc6 4. c4 e5 5. Nc3 Be7 6. O-O O-O
+7. d3 d6 8. Rb1 Rb8 9. a3 a6 10. Ne1 Bg4 11. b4 cxb4 12. axb4
+d5 13. b5 axb5 14. cxd5 Nd4 15. h3 Bh5 16. g4 b4 17. Ne4 Nxe4
+18. dxe4 Bg6 19. Bd2 Nb5 20. Bxb4 Bxb4 21. Rxb4 Qa5 22. Nd3
+Nc3 23. Qd2 Rfc8 24. Qb2 f6 25. Ra1 Qc7 26. Ra7 Qd8 27. Rbxb7
+Nxe4 28. Nxe5 fxe5 29. Bxe4 Bxe4 30. Rxg7+ Kh8 31. Rxh7+ Kg8
+32. Rh8+ Kxh8 33. Qxe5+ 1-0
+
