@@ -16,7 +16,7 @@ import statistics
 import json
 
 # Import the existing classes and functions
-from main3_1 import AggressionStats, get_raw_feature_scores, analyse_game, download_and_decompress_pgn
+from aggression_analyzer import AggressionStats, get_raw_feature_scores, analyse_game, download_and_decompress_pgn
 
 
 def collect_raw_scores(pgn_path: str, max_games: int = None, min_rating: int = 2000) -> Dict[str, List[float]]:
@@ -110,9 +110,9 @@ def calculate_normalization_parameters(raw_score_collections: Dict[str, List[flo
         normalization_params[feature_name] = {
             'mean': mean_val,
             'std': std_val,
-            'count': len(scores),
-            'min': min_val,
-            'max': max_val
+            # 'count': len(scores),
+            # 'min': min_val,
+            # 'max': max_val
         }
 
         print(f"{feature_name:<35} {len(scores):<8} {mean_val:<12.6f} {std_val:<12.6f} {min_val:<12.6f} {max_val:<12.6f}")
