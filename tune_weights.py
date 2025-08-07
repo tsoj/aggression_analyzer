@@ -137,13 +137,12 @@ def objective(trial: optuna.trial.Trial, training_data: List[Tuple[Dict, float]]
     for feature in feature_names:
         weights[feature] = trial.suggest_float(feature, 0.0, 2.0)
 
-    total_squared_error = 0.0
+    total_error = 0.0
     for raw_scores, target_label in training_data:
         predicted_score = calculate_score_with_weights(raw_scores, weights)
-        error = predicted_score - target_label
-        total_squared_error += error * error
+        total_error += abs(predicted_score - target_label)
 
-    return total_squared_error / len(training_data)
+    return total_error / len(training_data)
 
 
 def evaluate_performance(dataset: List, weights: Dict, dataset_name: str):
@@ -169,30 +168,41 @@ def evaluate_performance(dataset: List, weights: Dict, dataset_name: str):
         print("No 'attacking' games in this set.")
 
 
+def create_train_test_split(data: List, test_split: float) -> Tuple[List, List]:
+    """Create train/test split. If test_split is 0.0, returns all data as training set."""
+    if test_split == 0.0:
+        return data, []
+
+    split_idx = int(len(data) * (1.0 - test_split))
+    train_data = data[:split_idx]
+    test_data = data[split_idx:]
+    return train_data, test_data
+
+
 def main():
     parser = argparse.ArgumentParser(description="Tune aggression feature weights using Optuna.")
     parser.add_argument("--normal_games_dir", type=str, required=True, help="Path to folder with 'normal' PGNs (target=0.0).")
     parser.add_argument("--attacking_games_dir", type=str, required=True, help="Path to folder with 'attacking' PGNs (target=1.0).")
     parser.add_argument("--max_games_per_class", type=int, default=12_000, help="Maximum number of games to load for each class.")
-    parser.add_argument("--trials", type=int, default=200, help="Number of optimization trials to run.")
+    parser.add_argument("--trials", type=int, default=50, help="Number of optimization trials to run.")
+    parser.add_argument("--test_split", type=float, default=0.1, help="Fraction of data to use for testing (0.0 = no test set, 0.1 = 10%% test set).")
     args = parser.parse_args()
 
     # --- 1. Pre-process all data ---
     normal_data = preprocess_games_from_folder(args.normal_games_dir, 0.0, args.max_games_per_class)
     attacking_data = preprocess_games_from_folder(args.attacking_games_dir, 1.0, args.max_games_per_class)
 
-    # --- 2. Create Train/Test splits (90/10) ---
-    print("\nCreating 90/10 train-test splits...")
+    # --- 2. Create Train/Test splits ---
+    if args.test_split == 0.0:
+        print("\nNo test set will be created (test_split=0.0). All data will be used for training.")
+    else:
+        print(f"\nCreating {int((1.0 - args.test_split) * 100)}/{int(args.test_split * 100)} train-test splits...")
 
     # Split normal data
-    normal_split_idx = int(len(normal_data) * 0.9)
-    normal_train = normal_data[:normal_split_idx]
-    normal_test = normal_data[normal_split_idx:]
+    normal_train, normal_test = create_train_test_split(normal_data, args.test_split)
 
     # Split attacking data
-    attacking_split_idx = int(len(attacking_data) * 0.9)
-    attacking_train = attacking_data[:attacking_split_idx]
-    attacking_test = attacking_data[attacking_split_idx:]
+    attacking_train, attacking_test = create_train_test_split(attacking_data, args.test_split)
 
     # Combine to create final datasets
     all_training_data = normal_train + attacking_train
@@ -202,7 +212,10 @@ def main():
     random.shuffle(all_training_data)
 
     print(f"Total training examples: {len(all_training_data)} ({len(normal_train)} normal, {len(attacking_train)} attacking)")
-    print(f"Total testing examples:  {len(all_testing_data)} ({len(normal_test)} normal, {len(attacking_test)} attacking)")
+    if args.test_split > 0.0:
+        print(f"Total testing examples:  {len(all_testing_data)} ({len(normal_test)} normal, {len(attacking_test)} attacking)")
+    else:
+        print("Total testing examples:  0 (no test set)")
 
     if not all_training_data:
         print("\nError: Training data is empty. Cannot proceed with optimization.")
@@ -231,9 +244,10 @@ def main():
     print("}")
     print("-" * 70)
 
-    # --- 5. Evaluate final model on BOTH train and test sets ---
+    # --- 5. Evaluate final model on train set (and test set if available) ---
     evaluate_performance(all_training_data, best_weights, "Training Set")
-    evaluate_performance(all_testing_data, best_weights, "Test Set")
+    if args.test_split > 0.0:
+        evaluate_performance(all_testing_data, best_weights, "Test Set")
 
 if __name__ == "__main__":
     main()
