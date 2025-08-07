@@ -19,6 +19,49 @@ PIECE_VALUES = {
 }
 WINNING_MATERIAL_ADVANTAGE = PIECE_VALUES[chess.PAWN] * 3
 
+
+# Feature weights
+feature_weights = {
+    "Sacrifice Score per Win": 1.0,
+    "Captures Near King": 1.0,
+    "Coordinated Attacks per Move": 1.0,
+    "Opposite-Side Castling Games": 1.0,
+    "Pawn Storms per Move": 1.0,
+    "Rook/Queen Threats per Move": 1.0,
+    "Moves Near King": 1.0,
+    "Advanced Pieces per Move": 1.0,
+    "Forcing Moves per Move": 1.0,
+    "Checks per Move": 1.0,
+    "Forfeited Castling Games": 1.0,
+    "Bishop/Queen Threats per Move": 1.0,
+    "Knight Outposts per Move": 1.0,
+    "Rook Lifts per Move": 1.0,
+    "Central Pawn Breaks per Move": 1.0,
+    "Short Game Bonus per Win": 1.0,
+    "F7/F2 Attacks per Move": 1.0,
+}
+
+# Normalization parameters calculated from large dataset
+normalization_params = {
+    "Sacrifice Score per Win": {"mean": 0.03224481, "std": 0.16040210},
+    "Captures Near King": {"mean": 0.29434447, "std": 0.15217628},
+    "Coordinated Attacks per Move": {"mean": 0.09329826, "std": 0.19610824},
+    "Opposite-Side Castling Games": {"mean": 0.05882117, "std": 0.23529029},
+    "Pawn Storms per Move": {"mean": 0.09775153, "std": 0.09111069},
+    "Rook/Queen Threats per Move": {"mean": 0.03432748, "std": 0.04562306},
+    "Moves Near King": {"mean": 0.22211190, "std": 0.23017310},
+    "Advanced Pieces per Move": {"mean": 0.13637191, "std": 0.10244817},
+    "Forcing Moves per Move": {"mean": 0.22818925, "std": 0.09221739},
+    "Checks per Move": {"mean": 0.03978174, "std": 0.05454974},
+    "Forfeited Castling Games": {"mean": 0.10092565, "std": 0.30123100},
+    "Bishop/Queen Threats per Move": {"mean": 0.02520109, "std": 0.03944834},
+    "Knight Outposts per Move": {"mean": 0.01250136, "std": 0.02492654},
+    "Rook Lifts per Move": {"mean": 0.00898465, "std": 0.02311612},
+    "Central Pawn Breaks per Move": {"mean": 0.02600630, "std": 0.03564559},
+    "Short Game Bonus per Win": {"mean": 0.10775526, "std": 0.33671733},
+    "F7/F2 Attacks per Move": {"mean": 0.01650602, "std": 0.02840060},
+}
+
 # --- Data Class for Statistics ---
 @dataclass
 class AggressionStats:
@@ -319,48 +362,6 @@ def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float
     raw_scores = get_raw_feature_scores(stats)
     if not raw_scores:
         return 0.0
-
-    # Feature weights
-    feature_weights = {
-        "Sacrifice Score per Win": 1.0,
-        "Captures Near King": 1.0,
-        "Coordinated Attacks per Move": 1.0,
-        "Opposite-Side Castling Games": 1.0,
-        "Pawn Storms per Move": 1.0,
-        "Rook/Queen Threats per Move": 1.0,
-        "Moves Near King": 1.0,
-        "Advanced Pieces per Move": 1.0,
-        "Forcing Moves per Move": 1.0,
-        "Checks per Move": 1.0,
-        "Forfeited Castling Games": 1.0,
-        "Bishop/Queen Threats per Move": 1.0,
-        "Knight Outposts per Move": 1.0,
-        "Rook Lifts per Move": 1.0,
-        "Central Pawn Breaks per Move": 1.0,
-        "Short Game Bonus per Win": 1.0,
-        "F7/F2 Attacks per Move": 1.0,
-    }
-
-    # Normalization parameters calculated from large dataset
-    normalization_params = {
-        "Sacrifice Score per Win": {"mean": 0.03224481, "std": 0.16040210},
-        "Captures Near King": {"mean": 0.29434447, "std": 0.15217628},
-        "Coordinated Attacks per Move": {"mean": 0.09329826, "std": 0.19610824},
-        "Opposite-Side Castling Games": {"mean": 0.05882117, "std": 0.23529029},
-        "Pawn Storms per Move": {"mean": 0.09775153, "std": 0.09111069},
-        "Rook/Queen Threats per Move": {"mean": 0.03432748, "std": 0.04562306},
-        "Moves Near King": {"mean": 0.22211190, "std": 0.23017310},
-        "Advanced Pieces per Move": {"mean": 0.13637191, "std": 0.10244817},
-        "Forcing Moves per Move": {"mean": 0.22818925, "std": 0.09221739},
-        "Checks per Move": {"mean": 0.03978174, "std": 0.05454974},
-        "Forfeited Castling Games": {"mean": 0.10092565, "std": 0.30123100},
-        "Bishop/Queen Threats per Move": {"mean": 0.02520109, "std": 0.03944834},
-        "Knight Outposts per Move": {"mean": 0.01250136, "std": 0.02492654},
-        "Rook Lifts per Move": {"mean": 0.00898465, "std": 0.02311612},
-        "Central Pawn Breaks per Move": {"mean": 0.02600630, "std": 0.03564559},
-        "Short Game Bonus per Win": {"mean": 0.10775526, "std": 0.33671733},
-        "F7/F2 Attacks per Move": {"mean": 0.01650602, "std": 0.02840060},
-    }
 
     total_weight = sum(feature_weights.values())
     total_weighted_score = 0
