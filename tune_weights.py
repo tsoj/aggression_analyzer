@@ -181,11 +181,11 @@ def create_train_test_split(data: List, test_split: float) -> Tuple[List, List]:
 
 def main():
     parser = argparse.ArgumentParser(description="Tune aggression feature weights using Optuna.")
-    parser.add_argument("--normal_games_dir", type=str, required=True, help="Path to folder with 'normal' PGNs (target=0.0).")
-    parser.add_argument("--attacking_games_dir", type=str, required=True, help="Path to folder with 'attacking' PGNs (target=1.0).")
+    parser.add_argument("--normal_games_dir", type=str, default="./data/non_attacking_games", help="Path to folder with 'normal' PGNs (target=0.0).")
+    parser.add_argument("--attacking_games_dir", type=str, default="./data/attacking_games", help="Path to folder with 'attacking' PGNs (target=1.0).")
     parser.add_argument("--max_games_per_class", type=int, default=12_000, help="Maximum number of games to load for each class.")
-    parser.add_argument("--trials", type=int, default=50, help="Number of optimization trials to run.")
-    parser.add_argument("--test_split", type=float, default=0.1, help="Fraction of data to use for testing (0.0 = no test set, 0.1 = 10%% test set).")
+    parser.add_argument("--trials", type=int, default=1000, help="Number of optimization trials to run.")
+    parser.add_argument("--test_split", type=float, default=0.0, help="Fraction of data to use for testing (0.0 = no test set, 0.1 = 10%% test set).")
     args = parser.parse_args()
 
     # --- 1. Pre-process all data ---
