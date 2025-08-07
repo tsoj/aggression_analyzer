@@ -37,13 +37,13 @@ feature_weights = {
     "Pawn Storms per Move": 1.694113,
     "Rook Lifts per Move": 1.840941,
     "Rook/Queen Threats per Move": 1.385720,
-    "Sacrifice Score per Win": 1.814337,
+    "Sacrifice Score per Win Move": 1.814337,
     "Short Game Bonus per Win": 1.876712,
 }
 
 # Normalization parameters calculated from large dataset
 normalization_params = {
-    "Sacrifice Score per Win": {"mean": 0.03224481, "std": 0.16040210},
+    "Sacrifice Score per Win Move": {"mean": 0.03224481, "std": 0.16040210},
     "Captures Near King": {"mean": 0.29434447, "std": 0.15217628},
     "Coordinated Attacks per Move": {"mean": 0.09329826, "std": 0.19610824},
     "Opposite-Side Castling Games": {"mean": 0.05882117, "std": 0.23529029},
@@ -337,7 +337,7 @@ def get_raw_feature_scores(stats: AggressionStats) -> Dict[str, float]:
         return score / (total_moves_in_zone * max(weights)) if total_moves_in_zone > 0 else 0.0
 
     raw_scores = {
-        "Sacrifice Score per Win": stats.total_sacrifice_score / stats.num_win_moves if stats.num_win_moves > 0 else 0,
+        "Sacrifice Score per Win Move": stats.total_sacrifice_score / stats.num_win_moves if stats.num_win_moves > 0 else 0,
         "Captures Near King": get_proximity_score(stats.captures_near_king_dist),
         "Coordinated Attacks per Move": stats.coordinated_attacks / stats.total_moves,
         "Opposite-Side Castling Games": stats.opposite_side_castling_games / stats.num_games,
