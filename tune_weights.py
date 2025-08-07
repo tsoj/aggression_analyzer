@@ -28,13 +28,11 @@ def calculate_score_with_weights(raw_scores: Dict[str, float], weights: Dict[str
     total_weight = 0.0
 
     for feature_name, raw_value in raw_scores.items():
-        # Ensure we only use features we are optimizing
         if feature_name not in weights:
             continue
 
         weight = weights[feature_name]
 
-        # Normalize the raw value using the pre-calculated stats
         if feature_name in normalization_params:
             params = normalization_params[feature_name]
             if params['std'] > 0:
@@ -42,7 +40,6 @@ def calculate_score_with_weights(raw_scores: Dict[str, float], weights: Dict[str
             else:
                 normalized_value = 0.0
         else:
-            # Fallback for features not in our normalization map
             normalized_value = raw_value
 
         total_weighted_score += weight * normalized_value
@@ -51,8 +48,6 @@ def calculate_score_with_weights(raw_scores: Dict[str, float], weights: Dict[str
     if total_weight == 0:
         return 0.0
 
-    # The final score is the average weighted normalized value.
-    # This can be positive or negative.
     final_score = total_weighted_score / total_weight
     return final_score
 
@@ -61,6 +56,11 @@ def preprocess_games_from_folder(folder_path: str, target_label: float, max_game
     """
     Reads all PGNs in a folder, analyzes them, and returns a list of
     (raw_feature_scores, target_label) tuples.
+
+    *** MODIFIED LOGIC ***
+    If target_label is 1.0 (attacking games), only the WINNING player's stats
+    are extracted. Drawn games are skipped.
+    If target_label is 0.0 (normal games), stats from BOTH players are extracted.
     """
     print(f"\nProcessing games from '{folder_path}' with target score {target_label}...")
 
@@ -82,43 +82,55 @@ def preprocess_games_from_folder(folder_path: str, target_label: float, max_game
                         if game is None:
                             break
                     except (ValueError, IndexError):
-                        # Skip malformed games
                         continue
 
-                    players = {
-                        "White": game.headers.get("White", "?"),
-                        "Black": game.headers.get("Black", "?")
-                    }
+                    # --- NEW LOGIC TO HANDLE ATTACKING VS NORMAL GAMES DIFFERENTLY ---
 
-                    # A single game provides two data points (one for each player)
-                    for color, player_name in players.items():
-                        if player_name == "?":
-                            continue
+                    is_attacking_set = (target_label == 1.0)
 
-                        # Analyze the game from this player's perspective
-                        stats = AggressionStats()
-                        analyse_game(game, player_name, stats)
+                    if is_attacking_set:
+                        # For attacking games, find the winner and analyze only their play.
+                        result = game.headers.get("Result", "*")
+                        winner_player_name = None
+                        if result == "1-0":
+                            winner_player_name = game.headers.get("White")
+                        elif result == "0-1":
+                            winner_player_name = game.headers.get("Black")
 
-                        # Get the raw, unweighted feature scores
-                        raw_scores = get_raw_feature_scores(stats)
+                        # If we found a clear winner, process their game. Otherwise, skip (e.g., draws).
+                        if winner_player_name and winner_player_name != "?":
+                            stats = AggressionStats()
+                            analyse_game(game, winner_player_name, stats)
+                            raw_scores = get_raw_feature_scores(stats)
+                            if raw_scores:
+                                processed_data.append((raw_scores, target_label))
+                    else:
+                        # For normal games, analyze both players as before.
+                        players = {
+                            "White": game.headers.get("White", "?"),
+                            "Black": game.headers.get("Black", "?")
+                        }
+                        for _, player_name in players.items():
+                            if player_name == "?":
+                                continue
 
-                        if raw_scores:
-                            processed_data.append((raw_scores, target_label))
+                            stats = AggressionStats()
+                            analyse_game(game, player_name, stats)
+                            raw_scores = get_raw_feature_scores(stats)
+
+                            if raw_scores:
+                                processed_data.append((raw_scores, target_label))
         except Exception as e:
             print(f"Could not process file {pgn_path}: {e}")
 
-    print(f"Found {len(processed_data)} valid player-games in {folder_path}.")
+    print(f"Found {len(processed_data)} valid player-perspectives in {folder_path}.")
     return processed_data
 
 
 def objective(trial: optuna.trial.Trial, training_data: List[Tuple[Dict, float]]) -> float:
     """
-    The objective function for Optuna to minimize.
+    The objective function for Optuna to minimize. (Unchanged)
     """
-    # Define the search space for the weights.
-    # We suggest a new weight for each feature in each trial.
-    # A range of 0.0 to 2.0 is a good starting point. 0 disables a feature,
-    # 1 is a neutral baseline, >1 gives it more importance.
     weights = {}
     feature_names = normalization_params.keys()
     for feature in feature_names:
@@ -126,13 +138,11 @@ def objective(trial: optuna.trial.Trial, training_data: List[Tuple[Dict, float]]
 
     total_squared_error = 0.0
 
-    # Calculate the error for the current set of weights
     for raw_scores, target_label in training_data:
         predicted_score = calculate_score_with_weights(raw_scores, weights)
         error = predicted_score - target_label
         total_squared_error += error * error
 
-    # Return the Mean Squared Error
     return total_squared_error / len(training_data)
 
 
@@ -154,6 +164,12 @@ def main():
     if not all_training_data:
         print("Error: No game data could be loaded. Please check your PGN folders.")
         return
+
+    if not attacking_data:
+        print("Warning: No attacking game data was loaded. The optimization may not be meaningful.")
+    if not normal_data:
+        print("Warning: No normal game data was loaded. The optimization may not be meaningful.")
+
 
     # --- 2. Run the optimization study ---
     study = optuna.create_study(direction='minimize')
@@ -180,8 +196,8 @@ def main():
 
     # --- 4. (Optional) Sanity check the results ---
     print("\nVerifying performance with new weights...")
-    normal_scores = [calculate_score_with_weights(d[0], best_weights) for d in normal_data]
-    attacking_scores = [calculate_score_with_weights(d[0], best_weights) for d in attacking_data]
+    normal_scores = [calculate_score_with_weights(d[0], best_weights) for d in normal_data if d]
+    attacking_scores = [calculate_score_with_weights(d[0], best_weights) for d in attacking_data if d]
 
     if normal_scores:
         avg_normal = sum(normal_scores) / len(normal_scores)
