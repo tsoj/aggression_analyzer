@@ -156,8 +156,8 @@ def main():
 
     # --- 1. Pre-process all data ---
     # This is done only ONCE to save time.
-    normal_data = preprocess_games_from_folder(args.normal_games_dir, target_label=0.0, max_games_per_class=max_games_per_class)
-    attacking_data = preprocess_games_from_folder(args.attacking_games_dir, target_label=1.0, max_games_per_class=max_games_per_class)
+    normal_data = preprocess_games_from_folder(args.normal_games_dir, target_label=0.0, max_games_per_class=args.max_games_per_class)
+    attacking_data = preprocess_games_from_folder(args.attacking_games_dir, target_label=1.0, max_games_per_class=args.max_games_per_class)
 
     all_training_data = normal_data + attacking_data
 
