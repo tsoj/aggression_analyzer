@@ -379,7 +379,7 @@ def get_aggression_score(stats: AggressionStats, verbose: bool = False) -> float
             normalized_value = raw_value
         total_weighted_score += weight * normalized_value
 
-    final_score = (total_weighted_score / total_weight) * 100
+    final_score = (total_weighted_score / total_weight)
     return final_score
 
 # --- Utility and Main ---
