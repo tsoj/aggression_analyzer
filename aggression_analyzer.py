@@ -405,9 +405,10 @@ def main():
     parser.add_argument("--player", type=str, help="Name of a specific player to analyze. If omitted, all players will be analyzed.")
     parser.add_argument("--games", type=int, help="Maximum number of games to process.")
     parser.add_argument("--min_games", type=int, default=10, help="Minimum games for a player to be included in 'all players' analysis.")
-    parser.add_argument("--min_rating", type=int, default=2000, help="Minimum rating for the lower-rated player in each game (default: 2000).")
+    parser.add_argument("--min_rating", default=None, help="Minimum rating for the lower-rated player in each game (default: 2000).")
     parser.add_argument("--top_n", type=int, default=10, help="Number of top/bottom games to display.")
     parser.add_argument("--verbose", action="store_true", help="Show detailed breakdown of the aggression score.")
+    parser.add_argument("--event_filter", type=str, nargs="+", help="Filter games by event types (e.g., 'rapid', 'classical'). If omitted, all events are included.")
     args = parser.parse_args()
 
     pgn_path = args.pgn
@@ -440,9 +441,11 @@ def main():
                 # This can happen with malformed PGNs
                 continue
 
-            event = game.headers.get("Event", "").lower()
-            if "rapid" not in event and "classical" not in event:
-                continue
+            # Apply event filter if specified
+            if args.event_filter:
+                event = game.headers.get("Event", "").lower()
+                if not any(filter_type.lower() in event for filter_type in args.event_filter):
+                    continue
 
             white_player = game.headers.get("White", "?")
             black_player = game.headers.get("Black", "?")
@@ -453,7 +456,7 @@ def main():
                 white_elo = int(game.headers.get("WhiteElo", "0"))
                 black_elo = int(game.headers.get("BlackElo", "0"))
                 min_elo = min(white_elo, black_elo)
-                if min_elo > 0 and min_elo < args.min_rating:
+                if args.min_rating and min_elo < args.min_rating:
                     games_filtered_by_rating += 1
                     continue
             except (ValueError, TypeError):
@@ -532,17 +535,17 @@ def main():
 
         if not player_results:
             print(f"No players found with at least {args.min_games} games.")
-            return
+        else:
 
-        sorted_players = sorted(player_results, key=lambda item: item[1], reverse=True)
+            sorted_players = sorted(player_results, key=lambda item: item[1], reverse=True)
 
-        print(f"Aggression ranking for {len(sorted_players)} players with at least {args.min_games} games:")
-        print("-" * 80)
-        print(f"{'Rank':<5} {'Player':<30} {'Agg. Score':<15} {'Games':<10} {'Record (W/D/L)'}")
-        print("-" * 80)
-        for i, (player, score, stats) in enumerate(sorted_players):
-            record = f"{stats.num_wins} / {stats.num_draws} / {stats.num_losses}"
-            print(f"{i+1:<5} {player:<30} {score:<15.2f} {stats.num_games:<10} {record}")
+            print(f"Aggression ranking for {len(sorted_players)} players with at least {args.min_games} games:")
+            print("-" * 80)
+            print(f"{'Rank':<5} {'Player':<30} {'Agg. Score':<15} {'Games':<10} {'Record (W/D/L)'}")
+            print("-" * 80)
+            for i, (player, score, stats) in enumerate(sorted_players):
+                record = f"{stats.num_wins} / {stats.num_draws} / {stats.num_losses}"
+                print(f"{i+1:<5} {player:<30} {score:<15.2f} {stats.num_games:<10} {record}")
 
         print(f"\n--- Top {args.top_n} Most Aggressive Games (All Players) ---")
         for game, score, player, stats in top_aggressive_games:
